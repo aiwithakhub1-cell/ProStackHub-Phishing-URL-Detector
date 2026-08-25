@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Phishing URL Detector</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            color: #e5e7eb;
+
+            background:
+                radial-gradient(
+                    circle at top right,
+                    #312e81,
+                    transparent 35%
+                ),
+                #080d17;
+
+            min-height: 100vh;
+        }
+
+        header {
+            padding: 50px 7%;
+            border-bottom: 1px solid #273149;
+            background: rgba(8,13,23,0.90);
+        }
+
+        .header-inner {
+            max-width: 1200px;
+            margin: auto;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 7px 14px;
+            border-radius: 999px;
+            background: #1e1b4b;
+            color: #c4b5fd;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        h1 {
+            margin: 18px 0 8px;
+            font-size: 44px;
+        }
+
+        .subtitle {
+            color: #9ca3af;
+            max-width: 760px;
+            line-height: 1.7;
+        }
+
+        .container {
+            width: min(1200px, 92%);
+            margin: 40px auto;
+        }
+
+        .card {
+            background: rgba(17,24,39,0.93);
+            border: 1px solid #273149;
+            border-radius: 18px;
+            padding: 28px;
+            margin-bottom: 25px;
+            box-shadow:
+                0 15px 40px rgba(0,0,0,.25);
+        }
+
+        .input-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        input {
+            flex: 1;
+            padding: 15px;
+            background: #0c1320;
+            color: white;
+            border: 1px solid #33405c;
+            border-radius: 10px;
+            font-size: 16px;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: #8b5cf6;
+        }
+
+        button {
+            border: none;
+            padding: 14px 22px;
+            border-radius: 10px;
+            background: #7c3aed;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            opacity: .9;
+        }
+
+        .result-grid {
+            display: grid;
+            grid-template-columns:
+                repeat(
+                    auto-fit,
+                    minmax(220px,1fr)
+                );
+            gap: 18px;
+            margin-top: 22px;
+        }
+
+        .stat {
+            padding: 20px;
+            background: #0b1120;
+            border: 1px solid #273149;
+            border-radius: 12px;
+        }
+
+        .stat-label {
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        .stat-value {
+            margin-top: 8px;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .safe {
+            color: #86efac;
+        }
+
+        .danger {
+            color: #fca5a5;
+        }
+
+        .factor {
+            padding: 14px;
+            background: #0b1120;
+            border: 1px solid #273149;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .factor strong {
+            color: #c4b5fd;
+        }
+
+        .feature-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .feature-table th,
+        .feature-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #273149;
+        }
+
+        .muted {
+            color: #94a3b8;
+        }
+
+        .loading {
+            color: #c4b5fd;
+        }
+
+        @media(max-width:700px) {
+
+            h1 {
+                font-size: 34px;
+            }
+
+            .input-row {
+                flex-direction: column;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+<header>
+
+    <div class="header-inner">
+
+        <span class="badge">
+            MACHINE LEARNING SECURITY TOOL
+        </span>
+
+        <h1>
+            Phishing URL Detector
+        </h1>
+
+        <p class="subtitle">
+            Analyze URL structure and metadata with a
+            trained machine-learning classifier to identify
+            potentially phishing URLs and understand the
+            factors influencing the prediction.
+        </p>
+
+    </div>
+
+</header>
+
+
+<div class="container">
+
+
+    <section class="card">
+
+        <h2>Analyze URL</h2>
+
+        <p class="muted">
+            Enter a URL. The application analyzes the URL
+            structure without opening the website.
+        </p>
+
+
+        <div class="input-row">
+
+            <input
+                type="text"
+                id="urlInput"
+                placeholder="https://example.com/login"
+            >
+
+            <button onclick="analyzeURL()">
+                Analyze
+            </button>
+
+        </div>
+
+    </section>
+
+
+    <section
+        class="card"
+        id="resultCard"
+        style="display:none;"
+    >
+
+        <h2>Prediction Result</h2>
+
+        <div
+            id="prediction"
+            class="loading"
+        >
+            Waiting for analysis...
+        </div>
+
+
+        <div class="result-grid">
+
+            <div class="stat">
+
+                <div class="stat-label">
+                    Prediction
+                </div>
+
+                <div
+                    id="predictionValue"
+                    class="stat-value"
+                >
+                    -
+                </div>
+
+            </div>
+
+
+            <div class="stat">
+
+                <div class="stat-label">
+                    Phishing Probability
+                </div>
+
+                <div
+                    id="probabilityValue"
+                    class="stat-value"
+                >
+                    -
+                </div>
+
+            </div>
+
+
+            <div class="stat">
+
+                <div class="stat-label">
+                    Confidence
+                </div>
+
+                <div
+                    id="confidenceValue"
+                    class="stat-value"
+                >
+                    -
+                </div>
+
+            </div>
+
+
+            <div class="stat">
+
+                <div class="stat-label">
+                    Decision Threshold
+                </div>
+
+                <div
+                    id="thresholdValue"
+                    class="stat-value"
+                >
+                    -
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <section
+        class="card"
+        id="factorsCard"
+        style="display:none;"
+    >
+
+        <h2>Top Influencing Factors</h2>
+
+        <p class="muted">
+            These are the model's highest-weighted
+            structural features used for the decision.
+        </p>
+
+        <div id="factors"></div>
+
+    </section>
+
+
+    <section
+        class="card"
+        id="featuresCard"
+        style="display:none;"
+    >
+
+        <h2>Extracted URL Features</h2>
+
+        <table class="feature-table">
+
+            <thead>
+
+                <tr>
+                    <th>Feature</th>
+                    <th>Value</th>
+                </tr>
+
+            </thead>
+
+            <tbody id="featureTable"></tbody>
+
+        </table>
+
+    </section>
+
+
+</div>
+
+
+<script>
+
+async function analyzeURL() {
+
+    const url =
+        document.getElementById(
+            "urlInput"
+        ).value.trim();
+
+    if (!url) {
+        alert("Please enter a URL.");
+        return;
+    }
+
+    const resultCard =
+        document.getElementById(
+            "resultCard"
+        );
+
+    resultCard.style.display =
+        "block";
+
+    document.getElementById(
+        "prediction"
+    ).innerText =
+        "Analyzing URL...";
+
+
+    try {
+
+        const response =
+            await fetch(
+                "/predict",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        url: url
+                    })
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            document.getElementById(
+                "prediction"
+            ).innerText =
+                data.error ||
+                "Prediction failed.";
+
+            return;
+        }
+
+
+        const isPhishing =
+            data.prediction === "Phishing";
+
+
+        document.getElementById(
+            "prediction"
+        ).innerHTML =
+            isPhishing
+                ? "⚠️ Potential Phishing URL"
+                : "✅ Likely Legitimate URL";
+
+
+        document.getElementById(
+            "predictionValue"
+        ).innerText =
+            data.prediction;
+
+        document.getElementById(
+            "predictionValue"
+        ).className =
+            "stat-value " +
+            (
+                isPhishing
+                    ? "danger"
+                    : "safe"
+            );
+
+
+        document.getElementById(
+    "thresholdValue"
+).innerText =
+    data.threshold + "%";
+
+
+        document.getElementById(
+            "confidenceValue"
+        ).innerText =
+            data.confidence + "%";
+
+
+        document.getElementById(
+            "thresholdValue"
+        ).innerText =
+            data.threshold + "%";
+
+
+        showFactors(
+            data.top_factors
+        );
+
+        showFeatures(
+            data.features
+        );
+
+    } catch (error) {
+
+        document.getElementById(
+            "prediction"
+        ).innerText =
+            "Unable to contact the prediction server.";
+
+    }
+}
+
+
+function showFactors(factors) {
+
+    const card =
+        document.getElementById(
+            "factorsCard"
+        );
+
+    const container =
+        document.getElementById(
+            "factors"
+        );
+
+    card.style.display =
+        "block";
+
+    container.innerHTML = "";
+
+
+    factors.forEach(
+        factor => {
+
+            const div =
+                document.createElement(
+                    "div"
+                );
+
+            div.className =
+                "factor";
+
+            div.innerHTML = `
+                <strong>
+                    ${factor.feature}
+                </strong>
+                <br>
+                Value:
+                ${factor.value}
+                <br>
+                Feature importance:
+                ${(factor.importance * 100).toFixed(2)}%
+            `;
+
+            container.appendChild(
+                div
+            );
+        }
+    );
+}
+
+
+function showFeatures(features) {
+
+    const card =
+        document.getElementById(
+            "featuresCard"
+        );
+
+    const table =
+        document.getElementById(
+            "featureTable"
+        );
+
+    card.style.display =
+        "block";
+
+    table.innerHTML = "";
+
+
+    Object.entries(features)
+        .forEach(
+            ([name, value]) => {
+
+                const row =
+                    document.createElement(
+                        "tr"
+                    );
+
+                row.innerHTML = `
+                    <td>${name}</td>
+                    <td>${value}</td>
+                `;
+
+                table.appendChild(
+                    row
+                );
+            }
+        );
+}
+
+</script>
+
+</body>
+
+</html>
