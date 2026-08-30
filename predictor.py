@@ -46,61 +46,77 @@ def load_report():
 
 def extract_url_features(url):
     """
-    Convert a user-entered URL into the same
-    10-feature format used by the trained model.
-
-    This is a lightweight structural extractor.
-    The dataset itself uses -1 / 0 / 1 values,
-    so we map observable URL characteristics
-    into that same range.
+    Extract the same feature names used during model training.
+    The training dataset uses -1 / 0 / 1 categorical values.
     """
 
     text = str(url).strip()
-
     lowered = text.lower()
 
-    # 1. IP address
-    hostname_part = lowered
+    # -----------------------------
+    # Hostname
+    # -----------------------------
 
-    if "://" in hostname_part:
-        hostname_part = hostname_part.split(
+    hostname = lowered
+
+    if "://" in hostname:
+        hostname = hostname.split(
             "://",
             1
         )[1]
 
-    hostname_part = hostname_part.split(
+    hostname = hostname.split(
         "/",
         1
     )[0]
 
-    hostname_part = hostname_part.split(
+    hostname = hostname.split(
         ":",
         1
     )[0]
 
-    ip_like = 0
+    # -----------------------------
+    # IP Address
+    # -----------------------------
 
-    parts = hostname_part.split(".")
+    ip_detected = 0
+
+    parts = hostname.split(".")
 
     if len(parts) == 4:
+
         try:
+
             if all(
                 0 <= int(part) <= 255
                 for part in parts
             ):
-                ip_like = 1
-        except ValueError:
-            ip_like = 0
+                ip_detected = 1
 
-    # 2. URL length
+        except ValueError:
+
+            ip_detected = 0
+
+    # -----------------------------
+    # URL Length
+    # -----------------------------
+
     if len(text) < 54:
+
         url_length = -1
+
     elif len(text) <= 75:
+
         url_length = 0
+
     else:
+
         url_length = 1
 
-    # 3. URL shortening service
+    # -----------------------------
+    # URL Shortening Service
+    # -----------------------------
+
     shorteners = [
         "bit.ly",
         "tinyurl.com",
@@ -108,7 +124,9 @@ def extract_url_features(url):
         "t.co",
         "ow.ly",
         "is.gd",
-        "buff.ly"
+        "buff.ly",
+        "cutt.ly",
+        "tiny.cc"
     ]
 
     shortening_service = int(
@@ -118,15 +136,22 @@ def extract_url_features(url):
         )
     )
 
-    # 4. @ symbol
+    # -----------------------------
+    # @ Symbol
+    # -----------------------------
+
     at_symbol = int(
         "@" in text
     )
 
-    # 5. Double slash redirect
+    # -----------------------------
+    # Double Slash Redirect
+    # -----------------------------
+
     after_scheme = text
 
     if "://" in after_scheme:
+
         after_scheme = after_scheme.split(
             "://",
             1
@@ -136,70 +161,105 @@ def extract_url_features(url):
         "//" in after_scheme
     )
 
-    # 6. Prefix / suffix
+    # -----------------------------
+    # Prefix / Suffix
+    # -----------------------------
+
     prefix_suffix = int(
-        "-" in hostname_part
+        "-" in hostname
     )
 
-    # 7. Subdomain count
+    # -----------------------------
+    # Subdomain
+    # -----------------------------
+
     labels = [
         label
-        for label in hostname_part.split(".")
+        for label in hostname.split(".")
         if label
     ]
 
     if len(labels) <= 2:
+
         subdomain = -1
+
     elif len(labels) == 3:
+
         subdomain = 0
+
     else:
+
         subdomain = 1
 
-    # 8. HTTPS
-    https_state = (
+    # -----------------------------
+    # HTTPS
+    # -----------------------------
+
+    ssl_state = (
         1
         if lowered.startswith("https://")
         else -1
     )
 
-    # 9. Domain age
-    # We do not perform a live WHOIS lookup here.
-    # The dataset uses categorical age values.
-    # Unknown live age is represented neutrally.
+    # -----------------------------
+    # Domain Age
+    # -----------------------------
+
+    # The training dataset provides
+    # categorical domain-age values.
+    # Without a live WHOIS lookup we
+    # use a neutral value.
     domain_age = 0
 
-    # 10. HTTPS token
+    # -----------------------------
+    # HTTPS Token
+    # -----------------------------
+
     https_token = int(
-        "https" in hostname_part
-        or "@https" in lowered
+        "https" in hostname
     )
 
+    # -----------------------------
+    # IMPORTANT:
+    # Keys exactly match training
+    # feature columns.
+    # -----------------------------
+
     return {
-        "having_IPhaving_IP_Address": ip_like,
+        "having_IPhaving_IP_Address": ip_detected,
+
         "URLURL_Length": url_length,
+
         "Shortining_Service": (
             1
             if shortening_service
             else -1
         ),
+
         "having_At_Symbol": (
             1
             if at_symbol
             else -1
         ),
+
         "double_slash_redirecting": (
             1
             if double_slash
             else -1
         ),
+
         "Prefix_Suffix": (
             1
             if prefix_suffix
             else -1
         ),
+
         "having_Sub_Domain": subdomain,
-        "SSLfinal_State": https_state,
+
+        "SSLfinal_State": ssl_state,
+
         "age_of_domain": domain_age,
+
         "HTTPS_token": (
             1
             if https_token
@@ -214,6 +274,7 @@ def predict_url(url):
 
     model = bundle["model"]
 
+    # This is the key saved by train_model.py
     feature_columns = bundle[
         "feature_columns"
     ]
@@ -231,7 +292,10 @@ def predict_url(url):
     }
 
     X = pd.DataFrame(
-        [feature_values],
+        [[
+            feature_values[column]
+            for column in feature_columns
+        ]],
         columns=feature_columns
     )
 
@@ -264,40 +328,52 @@ def predict_url(url):
 
     ranked_factors = []
 
-    for feature, value in feature_values.items():
+    for feature in feature_columns:
+
+        value = feature_values.get(
+            feature,
+            0
+        )
+
+        importance_value = float(
+            importance.get(
+                feature,
+                0
+            )
+        )
 
         ranked_factors.append({
             "feature": feature,
             "value": value,
             "importance": round(
-                float(
-                    importance.get(
-                        feature,
-                        0
-                    )
-                ),
-                4
+                importance_value,
+                6
             )
         })
 
     ranked_factors.sort(
-        key=lambda item:
-        item["importance"],
+        key=lambda item: item["importance"],
         reverse=True
     )
 
     return {
         "url": url,
+
         "prediction": result,
+
         "probability": round(
             probability * 100,
             2
         ),
+
         "confidence": round(
             confidence * 100,
             2
         ),
+
         "threshold": 50.0,
+
         "features": feature_values,
+
         "top_factors": ranked_factors[:5]
     }

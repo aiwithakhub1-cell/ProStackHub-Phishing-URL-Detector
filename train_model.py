@@ -38,16 +38,16 @@ REPORT_DIR = os.path.join(
 # We deliberately use only features that can be
 # reasonably related to the URL-analysis task.
 FEATURE_COLUMNS = [
-    "having_IPhaving_IP_Address",
-    "URLURL_Length",
-    "Shortining_Service",
-    "having_At_Symbol",
-    "double_slash_redirecting",
-    "Prefix_Suffix",
-    "having_Sub_Domain",
-    "SSLfinal_State",
-    "age_of_domain",
-    "HTTPS_token",
+    "having_IPhaving_IP_Address ",
+    "URLURL_Length ",
+    "Shortining_Service ",
+    "having_At_Symbol ",
+    "double_slash_redirecting ",
+    "Prefix_Suffix ",
+    "having_Sub_Domain ",
+    "SSLfinal_State ",
+    "age_of_domain ",
+    "HTTPS_token ",
 ]
 
 
